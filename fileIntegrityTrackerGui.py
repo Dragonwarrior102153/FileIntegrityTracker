@@ -16,34 +16,39 @@ class FileIntegrityTrackerGui:
 
         self.id = 1
 
+        self.defaultView()
+        
+        self.mainWin.mainloop()
+
+    def defaultView(self):
         self.check = tk.Label(self.mainWin, text="", font=("Arial", 16))
         self.check.place(relx=0.3, rely=0.5, anchor="center")
-
+        
         self.connectBtn = tk.Button(self.mainWin, text="Connect", command=self.connect)
         self.connectBtn.place(relx=0.3, rely=0.65, anchor="center")
-
+        
         self.fileLbl = tk.Label(self.mainWin)
         self.fileLbl.place(relx=0.5, rely=0.5, anchor="center")
         self.chooseFileBtn = tk.Button(self.mainWin, text = "Select File", command=self.chooseFile)
         self.chooseFileBtn.place(relx=0.7, rely=0.5, anchor="center")
-
+        
         self.insertBtn = tk.Button(self.mainWin, text="Insert", command=self.clearForInsert)
         self.insertBtn.place(relx=0.4, rely=0.65, anchor="center")
-
+        
         updateBtn = tk.Button(self.mainWin, text="Update", command=self.update)
         updateBtn.place(relx=0.5, rely=0.65, anchor="center")
-
+        
         deleteBtn = tk.Button(self.mainWin, text="Delete", command=self.delete)
         deleteBtn.place(relx=0.6, rely=0.65, anchor="center")
 
         listViewBtn = tk.Button(self.mainWin, text="List View", command=self.listView)
         listViewBtn.place(relx=0.5, rely=0.75, anchor="center")
-
+        
         self.searchBar = tk.Entry(self.mainWin)
         self.searchBar.place(relx=0.5, rely=0.8, anchor="center")
         searchBtn = tk.Button(self.mainWin, text="Search", command=self.searchForVal)
         searchBtn.place(relx=0.5, rely=0.85, anchor="center")
-
+        
         right1Btn = tk.Button(self.mainWin, text=">", command=self.right1)
         right1Btn.place(relx=0.5, rely=0.575, anchor="center")    
         right3Btn = tk.Button(self.mainWin, text=">>>", command=self.right3)    
@@ -56,8 +61,7 @@ class FileIntegrityTrackerGui:
         left3Btn.place(relx=0.4, rely=0.575, anchor="center")
         fullLeftBtn = tk.Button(self.mainWin, text="|<", command=self.fullLeft)
         fullLeftBtn.place(relx=0.35, rely=0.575, anchor="center")
-
-        self.mainWin.mainloop()
+        
 
     def hashFile(self, file):
         # Implement the hashing logic here
@@ -205,11 +209,8 @@ class FileIntegrityTrackerGui:
         values = self.fitDb.selectAll()
         if isinstance(values, str):
             raise RuntimeError(f"Could not load database rows: {values}")
-        
-        last_id = max((row[0] for row in values), default=self.id)
-        while (self.fileLbl["text"] == "" and self.id < last_id):
-            self.id += 1
-            self.reset()
+
+        self.id = max((row[0] for row in values), default=self.id)
 
         self.reset()
         
