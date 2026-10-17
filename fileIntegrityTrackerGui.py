@@ -162,7 +162,7 @@ class FileIntegrityTrackerGui:
         else:
             for row in values:
                 #check if the file is in the db (the user doesnt need to put in the whole file path, just the last part is enough)
-                if (self.searchBar["text"] in row[1]):
+                if (self.searchBar.get() in row[1]):
                     self.id = row[0]
                     self.reset()    
                     return
