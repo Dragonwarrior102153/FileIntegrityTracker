@@ -1,11 +1,14 @@
-#imports
+# Connects the Tkinter interface to the SQLite-backed file integrity tracker.
 from fileIntegrityTrackerDb import FileIntegrityTrackerDb
 import tkinter as tk
 from tkinter import filedialog
 import hashlib
 import tkinter.messagebox
 
+
+# Provides the application's windows, file actions, and record navigation.
 class FileIntegrityTrackerGui:
+    # Creates the database client and starts the main application window.
     def __init__(self):
         # Initialize the GUI components here
         self.fitDb = FileIntegrityTrackerDb()
@@ -14,12 +17,11 @@ class FileIntegrityTrackerGui:
         self.mainWin.title("File Integrity Tracker")
         self.mainWin.config(background="black")
 
-        self.id = 1
-
         self.defaultView()
         
         self.mainWin.mainloop()
 
+    # Builds the main window's controls and connects them to their handlers.
     def defaultView(self):
         self.check = tk.Label(self.mainWin, text="", font=("Arial", 16))
         self.check.place(relx=0.3, rely=0.5, anchor="center")
@@ -63,12 +65,16 @@ class FileIntegrityTrackerGui:
         fullLeftBtn.place(relx=0.35, rely=0.575, anchor="center")
         
 
-    def hashFile(self, file):
-        # Implement the hashing logic here
-        with open(file, "rb") as f:
-            data = f.read()
-            return hashlib.sha256(data).hexdigest()
+    # Calculates a file's SHA-256 digest while reading it in bounded chunks.
+    def hashFile(self, filePath):
+        hasher = hashlib.sha256()
+        with open(filePath, "rb") as file:
+            while chunk := file.read(64 * 1024):
+                hasher.update(chunk)
 
+        return hasher.hexdigest() 
+
+    # Opens a file picker and displays the chosen path.
     def chooseFile(self):
         file_path = filedialog.askopenfilename(
             parent=self.mainWin,
@@ -77,10 +83,12 @@ class FileIntegrityTrackerGui:
         if (file_path):
             self.fileLbl.config(text=file_path)
 
+    # Opens or closes the database connection using the Connect button.
     def connect(self):
-        # Implement the database connection logic here
         if (self.connectBtn["text"] == "Connect"):
             self.fitDb.connect()
+            print(self.fitDb.selectAll())
+            self.id = self.fitDb.selectAll()[0][0]
             self.connectBtn.config(text="Disconnect")
             self.reset()
             print(self.fitDb.selectAll())
@@ -90,6 +98,7 @@ class FileIntegrityTrackerGui:
             self.connectBtn.config(text="Connect")
             self.fileLbl.config(text="Choose File")
 
+    # Displays the selected record and updates its integrity indicator.
     def reset(self):
         self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
         if (self.checkIntegrity()):
@@ -97,12 +106,21 @@ class FileIntegrityTrackerGui:
         else:
             self.check.config(text="✗", fg="red")
 
+    # Prepares the interface to choose a file for a new record.
     def clearForInsert(self):
         self.fileLbl.config(text="Choose new file")
         self.insertBtn.config(text="Commit", command=self.insert)
 
 
+    # Saves the selected file path and its current hash as a database record.
     def insert(self):
+        #ensure that the path isnt already in the database
+        values = self.fitDb.selectAll()
+        for row in values:
+            if (row[1] == self.fileLbl["text"]):
+                tkinter.messagebox.showerror("Error", "File already exists in database.")
+                return
+        
         #ensure user doesnt insert empty file path
         if (self.fileLbl["text"] == "Choose new file"):
             tkinter.messagebox.showerror("Error", "Please select a file to insert.")
@@ -111,29 +129,30 @@ class FileIntegrityTrackerGui:
             self.fitDb.insert(self.fileLbl["text"], self.hashFile(self.fileLbl["text"]))
             self.insertBtn.config(text="Insert", command=self.clearForInsert)
 
-        #ensure that the path isnt already in the database
-        values = self.fitDb.selectAll()
-        for row in values:
-            if (row[1] == self.fileLbl["text"]):
-                tkinter.messagebox.showerror("Error", "File already exists in database.")
-                return
-
+        
+    # Compares the selected record's saved hash with the file's current hash.
     def checkIntegrity(self):
         oldHash = self.fitDb.select(self.id, "HashValue")
         newHash = self.hashFile(self.fileLbl["text"])
         return (oldHash == newHash)
 
+    # Replaces the selected record's path and saved hash with the current file.
     def update(self):
         self.fitDb.update(self.id, self.fileLbl["text"], self.hashFile(self.fileLbl["text"]))
         self.reset()
 
+    # Deletes the selected row and selects its position in the refreshed rows.
     def delete(self):
-        if (self.id == len(self.fitDb.selectAll())):
-            self.id -= 1
         if (tkinter.messagebox.askyesno("Delete", f"Are you sure you want to delete {self.fileLbl['text']}?")):
-            self.fitDb.delete(self.id)
-        self.reset()
+            values = self.fitDb.selectAll() 
+            currentIndex = self.findValInList(self.id, values)
+            self.fitDb.delete(self.id) 
+            values = self.fitDb.selectAll()
+            if (currentIndex is not None):          
+                self.id = values[min(currentIndex, len(values) - 1)][0]
+            self.reset()
 
+    # Opens a window listing each stored path and its current integrity status.
     def listView(self):
         #show all the files in the database in a new window, and their integrity status
         values = self.fitDb.selectAll()
@@ -155,6 +174,7 @@ class FileIntegrityTrackerGui:
                 check.grid(row=i, column=1)
                 check.grid(padx=10, pady=5)
         
+    # Selects the first record whose file path contains the entered text.
     def searchForVal(self):
         values = self.fitDb.selectAll()
         if isinstance(values, str):
@@ -170,40 +190,43 @@ class FileIntegrityTrackerGui:
 
     #navigation buttons (ensure that the id exists in the database before changing it)
 
-    def right1(self):
-        if (self.id < len(self.fitDb.selectAll())):
-            self.id += 1
-            self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
-        
+    # Returns the row index for a database ID, or None if no row matches.
+    def findValInList(self, id, list):
+        for i in range(len(list)):
+            if (list[i][0] == id):
+                return i
 
+    # Moves to the next record, stopping at the final row.
+    def right1(self):   
         values = self.fitDb.selectAll()
-        if isinstance(values, str):
-            raise RuntimeError(f"Could not load database rows: {values}")
-        
-        last_id = max((row[0] for row in values), default=self.id)
-        while (self.fileLbl["text"] == "" and self.id < last_id):
-            self.id += 1
+        currentIndex = self.findValInList(self.id, values)
 
+        if (currentIndex is not None):
+            diffInIds = len(values) - currentIndex - 1
+            if (diffInIds >= 1):
+                self.id = values[currentIndex + 1][0]
+                
+            else:
+                self.id = values[currentIndex + diffInIds][0]
+                            
         self.reset()
 
+    # Moves forward by up to three records, stopping at the final row.
     def right3(self):
-        if (self.id < len(self.fitDb.selectAll()) - 2):
-            self.id += 3
-        else:
-            self.id = len(self.fitDb.selectAll())
-        self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
-    
-
         values = self.fitDb.selectAll()
-        if isinstance(values, str):
-            raise RuntimeError(f"Could not load database rows: {values}")
-        
-        last_id = max((row[0] for row in values), default=self.id)
-        while (self.fileLbl["text"] == "" and self.id < last_id):
-            self.id += 1
-        
+        currentIndex = self.findValInList(self.id, values)
+
+        if (currentIndex is not None):
+            diffInIds = len(values) - currentIndex - 1
+            if (diffInIds >= 3):
+                self.id = values[currentIndex + 3][0]
+                
+            else:
+                self.id = values[currentIndex + diffInIds][0]
+                            
         self.reset()
 
+    # Selects the record with the greatest database ID.
     def fullRight(self):
 
         values = self.fitDb.selectAll()
@@ -215,33 +238,35 @@ class FileIntegrityTrackerGui:
         self.reset()
         
 
+    # Moves to the previous record, stopping at the first row.
     def left1(self):
-        if (self.id > 1):
-            self.id -= 1
-            self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
-        
+        values = self.fitDb.selectAll()
+        currentIndex = self.findValInList(self.id, values)
 
-        while (self.fileLbl["text"] == "" and self.id > 0):
-            self.id -= 1
-            self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
+        if (currentIndex is not None):
+            if (currentIndex >= 1):
+                self.id = values[currentIndex - 1][0]         
 
         self.reset()
 
+    # Moves backward by up to three records, stopping at the first row.
     def left3(self):
-        if (self.id > 3):
-            self.id -= 3
-        else:
-            self.id = 1
-        self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
+        values = self.fitDb.selectAll()
+        currentIndex = self.findValInList(self.id, values)
 
-        while (self.fileLbl["text"] == "" and self.id > 0):
-            self.id -= 1
-            self.fileLbl.config(text=self.fitDb.select(self.id, "FilePath"))
+        if (currentIndex is not None):
+            if (currentIndex >= 3):
+                self.id = values[currentIndex - 3][0]
+        
+            else:
+                self.id = values[0][0]            
 
         self.reset()
 
+    # Selects the first row returned by the database.
     def fullLeft(self):
-        self.id = 1
+        values = self.fitDb.selectAll()
+        self.id = values[0][0]
         self.reset()
         
             

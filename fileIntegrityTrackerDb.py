@@ -1,12 +1,16 @@
-#imports
+# Provides SQLite operations for the file integrity tracker.
 import sqlite3
 
+
+# Reads and writes tracked file paths and their saved SHA-256 hashes.
 class FileIntegrityTrackerDb:
+    # Initializes the database client; the connection is opened by connect().
     def __init__(self):
         # Initialize the database connection here
         pass
         
 
+    # Opens the SQLite database and creates its table if it does not exist.
     def connect(self):
         try:
             self.conn = sqlite3.connect('fileIntegrityTracker.sqlite')
@@ -25,6 +29,7 @@ class FileIntegrityTrackerDb:
         except sqlite3.Error as error:
             return str(error)
 
+    # Inserts a file path and its hash as a new database row.
     def insert(self, file, hashVal):
         try:
             query = """
@@ -38,6 +43,7 @@ class FileIntegrityTrackerDb:
         except sqlite3.Error as err:
             return str(err)
 
+    # Deletes the row with the given database ID.
     def delete(self, ID):
         try:
             query = """
@@ -50,6 +56,7 @@ class FileIntegrityTrackerDb:
         except sqlite3.Error as err:
             return str(err)
 
+    # Updates the file path and hash for the row with the given database ID.
     def update(self, ID, fileNew, hashNew):
         try:
             query = """
@@ -62,6 +69,7 @@ class FileIntegrityTrackerDb:
         except sqlite3.Error as err:
             return str(err)
 
+    # Returns one column value for an ID, or an error string on SQLite failure.
     def select(self, ID, column):
         try:
             query = f"""
@@ -75,6 +83,7 @@ class FileIntegrityTrackerDb:
         except sqlite3.Error as err:
             return str(err)
 
+    # Returns all database rows, or an error string on SQLite failure.
     def selectAll(self):
             try:
                 query = """
@@ -88,6 +97,7 @@ class FileIntegrityTrackerDb:
             except sqlite3.Error as err:
                 return str(err)
 
+    # Closes the active SQLite connection.
     def disconnect(self):
         try:
             self.conn.close()
