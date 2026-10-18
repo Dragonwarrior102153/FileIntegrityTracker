@@ -52,5 +52,3 @@ The database layer is in `fileIntegrityTrackerDb.py`, the Tkinter interface is i
 - The application expects at least one database record when connecting and navigating. An empty database is not currently handled throughout the GUI.
 - Navigation uses the order returned by SQLite; the query does not specify an explicit sort order.
 - Tracked file paths refer to files on the local machine. If a file is moved or becomes inaccessible, its integrity check cannot read it.
-
-`test.py` is a small standalone example script, not an automated test suite.
